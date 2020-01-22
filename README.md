@@ -48,5 +48,5 @@ while an evaluation entry:
 which just tells the expected reward `R` evaluating current policy after `S` steps. Note that `R` is average evaluation performance over `num_eval_episodes` episodes (usually 10).
 
 ## Results
-An extensive benchmarking of SAC on the DM Control Suite against D4PG. Here we plot an average and performance of SAC together with p95 confidence intervals. Note that results for D4PG are reported after 10^8 steps and taken from the original paper.
+An extensive benchmarking of SAC on the DM Control Suite against D4PG. We plot an average and performance of SAC together with p95 confidence intervals. Note that results for D4PG are reported after 10^8 steps and taken from the original paper.
 ![Results](figures/dm_control.png)
