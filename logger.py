@@ -5,7 +5,6 @@ import os
 import csv
 import shutil
 import torch
-import torchvision
 import numpy as np
 from termcolor import colored
 
@@ -150,12 +149,6 @@ class Logger(object):
         if self._sw is not None:
             self._sw.add_scalar(key, value, step)
 
-    def _try_sw_log_image(self, key, image, step):
-        if self._sw is not None:
-            assert image.dim() == 3
-            grid = torchvision.utils.make_grid(image.unsqueeze(1))
-            self._sw.add_image(key, grid, step)
-
     def _try_sw_log_video(self, key, frames, step):
         if self._sw is not None:
             frames = torch.from_numpy(np.array(frames))
@@ -186,12 +179,6 @@ class Logger(object):
             self.log_histogram(key + '_b', param.bias.data, step)
             if hasattr(param.bias, 'grad') and param.bias.grad is not None:
                 self.log_histogram(key + '_b_g', param.bias.grad.data, step)
-
-    def log_image(self, key, image, step, log_frequency=None):
-        if not self._should_log(step, log_frequency):
-            return
-        assert key.startswith('train') or key.startswith('eval')
-        self._try_sw_log_image(key, image, step)
 
     def log_video(self, key, frames, step, log_frequency=None):
         if not self._should_log(step, log_frequency):

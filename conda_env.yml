@@ -2,9 +2,8 @@ name: pytorch_sac
 channels:
   - defaults
 dependencies:
-  - python=3.7
+  - python=3.6
   - pytorch
-  - torchvision
   - cudatoolkit=9.2
   - absl-py
   - pyparsing
