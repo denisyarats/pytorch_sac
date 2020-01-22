@@ -17,7 +17,7 @@ To train an SAC agent on the `cheetah run` task run:
 ```
 python train.py env=cheetah_run
 ```
-This will produce 'exp' folder, where all the outputs are going to be stored including train/eval logs, tensorboard blobs, and evaluation episode videos. One can attacha tensorboard to monitor training by running:
+This will produce `exp` folder, where all the outputs are going to be stored including train/eval logs, tensorboard blobs, and evaluation episode videos. One can attacha tensorboard to monitor training by running:
 ```
 tensorboard --logdir exp
 ```
