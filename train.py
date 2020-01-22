@@ -84,12 +84,7 @@ class Workspace(object):
             episode_reward = 0
             while not done:
                 with utils.eval_mode(self.agent):
-                    if self.replay_buffer.mean_obs_np is not None:
-                        obs_norm = (obs - self.replay_buffer.mean_obs_np) / \
-                          self.replay_buffer.std_obs_np
-                        action = self.agent.act(obs_norm, sample=False)
-                    else:
-                        action = self.agent.act(obs, sample=False)
+                    action = self.agent.act(obs, sample=False)
                 obs, reward, done, _ = self.env.step(action)
                 self.video_recorder.record(self.env)
                 episode_reward += reward
