@@ -9,7 +9,7 @@ conda env create -f conda_env.yml
 ```
 After the instalation ends you can activate your environment with:
 ```
-source activate pytorch_sac_ae
+source activate pytorch_sac
 ```
 
 ## Instructions
