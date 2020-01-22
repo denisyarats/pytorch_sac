@@ -2,6 +2,18 @@
 
 This is PyTorch implementation of Soft Actor-Critic (SAC) [[ArXiv]](https://arxiv.org/abs/1812.05905).
 
+If you use this code in your research project please cite it as:
+```
+@misc{pytorch_sac,
+  author = {Yarats, Denis},
+  title = {Soft Actor-Critic (SAC) implementation in PyTorch},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/denisyarats/pytorch_sac}},
+}
+```
+
 ## Requirements
 We assume you have access to a gpu that can run CUDA 9.2. Then, the simplest way to install all required dependencies is to create an anaconda environment and activate it:
 ```
