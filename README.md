@@ -2,7 +2,7 @@
 
 This is PyTorch implementation of Soft Actor-Critic (SAC) [[ArXiv]](https://arxiv.org/abs/1812.05905).
 
-If you use this code in your research project please cite it as:
+If you use this code in your research project please cite us as:
 ```
 @misc{pytorch_sac,
   author = {Yarats, Denis and Kostrikov, Ilya},
