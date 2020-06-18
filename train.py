@@ -10,8 +10,6 @@ import sys
 import time
 import pickle as pkl
 
-
-
 from video import VideoRecorder
 from logger import Logger
 from replay_buffer import ReplayBuffer
@@ -39,7 +37,6 @@ def make_env(cfg):
     assert env.action_space.high.max() <= 1
 
     return env
-
 
 
 class Workspace(object):
@@ -76,6 +73,7 @@ class Workspace(object):
         self.step = 0
 
     def evaluate(self):
+        average_episode_reward = 0
         for episode in range(self.cfg.num_eval_episodes):
             obs = self.env.reset()
             self.agent.reset()
@@ -89,8 +87,11 @@ class Workspace(object):
                 self.video_recorder.record(self.env)
                 episode_reward += reward
 
+            average_episode_reward += episode_reward
             self.video_recorder.save(f'{self.step}.mp4')
-            self.logger.log('eval/episode_reward', episode_reward, self.step)
+        average_episode_reward /= self.cfg.num_eval_episodes
+        self.logger.log('eval/episode_reward', average_episode_reward,
+                        self.step)
         self.logger.dump(self.step)
 
     def run(self):
@@ -146,7 +147,6 @@ class Workspace(object):
             obs = next_obs
             episode_step += 1
             self.step += 1
-
 
 
 @hydra.main(config_path='config/train.yaml', strict=True)
