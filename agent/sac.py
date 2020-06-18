@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-
 from agent import Agent
 import utils
 
@@ -13,11 +12,11 @@ import hydra
 
 class SACAgent(Agent):
     """SAC algorithm."""
-    def __init__(self, obs_dim, action_dim, action_range, device,
-                 critic_cfg, actor_cfg, discount, init_temperature, alpha_lr,
-                 alpha_betas, actor_lr, actor_betas, actor_update_frequency,
-                 critic_lr, critic_betas, critic_tau,
-                 critic_target_update_frequency, batch_size):
+    def __init__(self, obs_dim, action_dim, action_range, device, critic_cfg,
+                 actor_cfg, discount, init_temperature, alpha_lr, alpha_betas,
+                 actor_lr, actor_betas, actor_update_frequency, critic_lr,
+                 critic_betas, critic_tau, critic_target_update_frequency,
+                 batch_size, learnable_temperature):
         super().__init__()
 
         self.action_range = action_range
@@ -27,6 +26,7 @@ class SACAgent(Agent):
         self.actor_update_frequency = actor_update_frequency
         self.critic_target_update_frequency = critic_target_update_frequency
         self.batch_size = batch_size
+        self.learnable_temperature = learnable_temperature
 
         self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
         self.critic_target = hydra.utils.instantiate(critic_cfg).to(
@@ -74,12 +74,14 @@ class SACAgent(Agent):
         assert action.ndim == 2 and action.shape[0] == 1
         return utils.to_np(action[0])
 
-    def update_critic(self, obs, action, reward, next_obs, not_done, logger, step):
+    def update_critic(self, obs, action, reward, next_obs, not_done, logger,
+                      step):
         dist = self.actor(next_obs)
         next_action = dist.rsample()
         log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
         target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
-        target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
+        target_V = torch.min(target_Q1,
+                             target_Q2) - self.alpha.detach() * log_prob
         target_Q = reward + (not_done * self.discount * target_V)
         target_Q = target_Q.detach()
 
@@ -116,13 +118,14 @@ class SACAgent(Agent):
 
         self.actor.log(logger, step)
 
-        self.log_alpha_optimizer.zero_grad()
-        alpha_loss = (self.alpha *
-                      (-log_prob - self.target_entropy).detach()).mean()
-        logger.log('train_alpha/loss', alpha_loss, step)
-        logger.log('train_alpha/value', self.alpha, step)
-        alpha_loss.backward()
-        self.log_alpha_optimizer.step()
+        if self.learnable_temperature:
+            self.log_alpha_optimizer.zero_grad()
+            alpha_loss = (self.alpha *
+                          (-log_prob - self.target_entropy).detach()).mean()
+            logger.log('train_alpha/loss', alpha_loss, step)
+            logger.log('train_alpha/value', self.alpha, step)
+            alpha_loss.backward()
+            self.log_alpha_optimizer.step()
 
     def update(self, replay_buffer, logger, step):
         obs, action, reward, next_obs, not_done, not_done_no_max = replay_buffer.sample(
