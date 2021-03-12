@@ -32,5 +32,5 @@ tensorboard --logdir exp
 ```
 
 ## Results
-An extensive benchmarking of SAC on the DM Control Suite against D4PG. We plot an average performance of SAC over 5 seeds together with p95 confidence intervals. Importantly, we keep the hyperparameters fixed across all the tasks. Note that results for D4PG are reported after 10^8 steps and taken from the original paper.
+An extensive benchmarking of SAC on the DM Control Suite against D4PG. We plot an average performance of SAC over 3 seeds together with p95 confidence intervals. Importantly, we keep the hyperparameters fixed across all the tasks. Note that results for D4PG are reported after 10^8 steps and taken from the original paper.
 ![Results](figures/dm_control.png)
