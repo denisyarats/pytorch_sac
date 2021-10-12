@@ -1,0 +1,44 @@
+defaults:
+  - agent: ddpg
+  - override hydra/launcher: submitit_local
+
+# task settings
+task: cheetah_run
+discount: 0.99
+# train settings
+num_train_frames: 1000000
+num_seed_frames: 4000
+# eval
+eval_every_frames: 20000
+num_eval_episodes: 10
+# snapshot
+save_snapshot: false
+# replay buffer
+replay_buffer_size: ${num_train_frames}
+replay_buffer_num_workers: 2
+nstep: ${agent.nstep}
+batch_size: ${agent.batch_size}
+# misc
+seed: 1
+device: cuda
+save_video: true
+save_train_video: false
+use_tb: false
+# experiment
+experiment: exp
+
+
+hydra:
+  run:
+    dir: ./exp_local/${now:%Y.%m.%d}/${now:%H%M%S}_${agent.name}_${hydra.job.override_dirname}
+  sweep:
+    dir: ./exp/${now:%Y.%m.%d}/${now:%H%M}_${experiment}
+    subdir: ${hydra.job.num}
+  launcher:
+    timeout_min: 4300
+    cpus_per_task: 10
+    gpus_per_node: 1
+    tasks_per_node: 1
+    mem_gb: 160
+    nodes: 1
+    submitit_folder: ./exp/${now:%Y.%m.%d}/${now:%H%M%S}_${experiment}/.slurm

@@ -5,38 +5,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils
-from nets import DoubleQCritic, StochasticActor
+from nets import DoubleQCritic, DeterministicActor
 
 
-class SACAgent:
+class DDPGAgent:
     def __init__(self, name, obs_dim, action_dim, device, lr, nstep,
-                 batch_size, log_std_bounds, hidden_dim, critic_target_tau,
-                 num_expl_steps, init_temperature, update_every_steps, use_tb):
-
+                 batch_size, hidden_dim, critic_target_tau, num_expl_steps,
+                 use_ln, use_sn,
+                 update_every_steps, stddev_schedule, stddev_clip, use_tb):
         self.device = device
         self.critic_target_tau = critic_target_tau
         self.update_every_steps = update_every_steps
         self.use_tb = use_tb
         self.num_expl_steps = num_expl_steps
+        self.stddev_schedule = stddev_schedule
+        self.stddev_clip = stddev_clip
 
         # models
-        self.actor = StochasticActor(obs_dim, action_dim, hidden_dim,
-                                     log_std_bounds).to(device)
+        self.actor = DeterministicActor(obs_dim, action_dim,
+                                        hidden_dim, use_ln=use_ln, use_sn=use_sn).to(device)
 
-        self.critic = DoubleQCritic(obs_dim, action_dim, hidden_dim).to(device)
+        self.critic = DoubleQCritic(obs_dim, action_dim, hidden_dim,  use_ln=use_ln, use_sn=use_sn).to(device)
         self.critic_target = DoubleQCritic(obs_dim, action_dim,
-                                           hidden_dim).to(device)
+                                           hidden_dim, use_ln=use_ln, use_sn=use_sn).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
-
-        self.log_alpha = torch.tensor(np.log(init_temperature)).to(device)
-        self.log_alpha.requires_grad = True
-        # set target entropy to -|A|
-        self.target_entropy = -action_dim
 
         # optimizers
         self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr)
         self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr)
-        self.alpha_opt = torch.optim.Adam([self.log_alpha], lr=lr)
 
         self.train()
         self.critic_target.train()
@@ -46,17 +42,14 @@ class SACAgent:
         self.actor.train(training)
         self.critic.train(training)
 
-    @property
-    def alpha(self):
-        return self.log_alpha.exp()
-
     def act(self, obs, step, eval_mode):
         obs = torch.as_tensor(obs, device=self.device).unsqueeze(0)
-        dist = self.actor(obs)
+        stddev = utils.schedule(self.stddev_schedule, step)
+        dist = self.actor(obs, stddev)
         if eval_mode:
             action = dist.mean
         else:
-            action = dist.sample()
+            action = dist.sample(clip=None)
             if step < self.num_expl_steps:
                 action.uniform_(-1.0, 1.0)
         return action.cpu().numpy()[0]
@@ -65,12 +58,11 @@ class SACAgent:
         metrics = dict()
 
         with torch.no_grad():
-            dist = self.actor(next_obs)
-            next_action = dist.sample()
-            next_log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+            stddev = utils.schedule(self.stddev_schedule, step)
+            dist = self.actor(next_obs, stddev)
+            next_action = dist.sample(clip=self.stddev_clip)
             target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
-            target_V = torch.min(target_Q1,
-                                 target_Q2) - self.alpha * next_log_prob
+            target_V = torch.min(target_Q1, target_Q2)
             target_Q = reward + (discount * target_V)
 
         Q1, Q2 = self.critic(obs, action)
@@ -89,36 +81,27 @@ class SACAgent:
 
         return metrics
 
-    def update_actor_and_alpha(self, obs, step):
+    def update_actor(self, obs, step):
         metrics = dict()
 
-        dist = self.actor(obs)
-        action = dist.rsample()
+        stddev = utils.schedule(self.stddev_schedule, step)
+        dist = self.actor(obs, stddev)
+        action = dist.sample(clip=self.stddev_clip)
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
         Q1, Q2 = self.critic(obs, action)
         Q = torch.min(Q1, Q2)
 
-        actor_loss = (self.alpha.detach() * log_prob - Q).mean()
+        actor_loss = -Q.mean()
 
         # optimize actor
         self.actor_opt.zero_grad(set_to_none=True)
         actor_loss.backward()
         self.actor_opt.step()
 
-        alpha_loss = (self.alpha *
-                      (-log_prob - self.target_entropy).detach()).mean()
-
-        # optimize alpha
-        self.alpha_opt.zero_grad(set_to_none=True)
-        alpha_loss.backward()
-        self.alpha_opt.step()
-
         if self.use_tb:
             metrics['actor_loss'] = actor_loss.item()
             metrics['actor_logprob'] = log_prob.mean().item()
             metrics['actor_ent'] = dist.entropy().sum(dim=-1).mean().item()
-            metrics['actor_alpha'] = self.alpha.item()
-            metrics['actor_alpha_loss'] = alpha_loss.item()
 
         return metrics
 
@@ -140,7 +123,7 @@ class SACAgent:
             self.update_critic(obs, action, reward, discount, next_obs, step))
 
         # update actor
-        metrics.update(self.update_actor_and_alpha(obs, step))
+        metrics.update(self.update_actor(obs, step))
 
         # update critic target
         utils.soft_update_params(self.critic, self.critic_target,
