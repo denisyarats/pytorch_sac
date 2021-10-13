@@ -1,56 +1,79 @@
 import torch
-import torch.nn as nn
+from torch import nn, jit
 from distribs import TruncatedNormal, SquashedNormal
 from torch.nn.utils import spectral_norm
 from utils import weight_init
 
-        
+
+def maybe_sn(m, use_sn):
+    return spectral_norm(m) if use_sn else m
+
+
+class MLP(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dims, spectral_norms):
+        super().__init__()
+        assert len(hidden_dims) == len(spectral_norms)
+        layers = []
+        for dim, use_sn in zip(hidden_dims, spectral_norms):
+            layers += [
+                maybe_sn(nn.Linear(input_dim, dim), use_sn),
+                nn.ReLU(inplace=True)
+            ]
+            input_dim = dim
+
+        layers += [nn.Linear(input_dim, output_dim)]
+
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class LayerNormMLP(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dims, spectral_norms):
+        super().__init__()
+        assert len(hidden_dims) == len(spectral_norms)
+
+        self.net = nn.Sequential(
+            maybe_sn(nn.Linear(input_dim, hidden_dims[0]), spectral_norms[0]),
+            nn.LayerNorm(hidden_dims[0]), nn.Tanh(),
+            MLP(hidden_dims[0], output_dim, hidden_dims[1:],
+                spectral_norms[1:]))
+
+    def forward(self, x):
+        return self.net(x)
 
 
 class DoubleQCritic(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dim, use_ln, use_sn):
+    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms):
         super().__init__()
-        
-        act = lambda : nn.Sequential(nn.LayerNorm(hidden_dim), nn.Tanh()) if use_ln else nn.ReLU()
-        sn = spectral_norm if use_sn else lambda m: m
 
-        self.Q1 = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim),
-                                act(),
-                                sn(nn.Linear(hidden_dim, hidden_dim)), nn.ReLU(),
-                                nn.Linear(hidden_dim, 1))
+        input_dim = obs_dim + action_dim
 
-        self.Q2 = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim),
-                                act(),
-                                sn(nn.Linear(hidden_dim, hidden_dim)), nn.ReLU(),
-                                nn.Linear(hidden_dim, 1))
+        self.q1_net = LayerNormMLP(input_dim, 1, hidden_dims, spectral_norms)
+        self.q2_net = LayerNormMLP(input_dim, 1, hidden_dims, spectral_norms)
 
         self.apply(weight_init)
 
     def forward(self, obs, action):
         obs_action = torch.cat([obs, action], dim=-1)
-        q1 = self.Q1(obs_action)
-        q2 = self.Q2(obs_action)
+        q1 = self.q1_net(obs_action)
+        q2 = self.q2_net(obs_action)
 
         return q1, q2
 
 
 class DeterministicActor(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dim, use_ln, use_sn):
+    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms):
         super().__init__()
-        
-        act = lambda : nn.Sequential(nn.LayerNorm(hidden_dim), nn.Tanh()) if use_ln else nn.ReLU()
-        sn = spectral_norm if use_sn else lambda m: m
 
-        self.policy = nn.Sequential(nn.Linear(obs_dim, hidden_dim),
-                                    act(),
-                                    sn(nn.Linear(hidden_dim,
-                                              hidden_dim)), nn.ReLU(),
-                                    nn.Linear(hidden_dim, action_dim))
+        self.policy_net = LayerNormMLP(obs_dim, action_dim, hidden_dims,
+                                       spectral_norms)
 
         self.apply(weight_init)
 
     def forward(self, obs, std):
-        mu = self.policy(obs)
+        mu = self.policy_net(obs)
         mu = torch.tanh(mu)
         std = torch.ones_like(mu) * std
 
@@ -59,20 +82,19 @@ class DeterministicActor(nn.Module):
 
 
 class StochasticActor(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dim, log_std_bounds):
+    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms,
+                 log_std_bounds):
         super().__init__()
 
         self.log_std_bounds = log_std_bounds
-        self.policy = nn.Sequential(nn.Linear(obs_dim, hidden_dim),
-                                    nn.LayerNorm(hidden_dim), nn.Tanh(),
-                                    nn.Linear(hidden_dim, hidden_dim),
-                                    nn.ReLU(),
-                                    nn.Linear(hidden_dim, 2 * action_dim))
+
+        self.policy_net = LayerNormMLP(obs_dim, 2 * action_dim, hidden_dims,
+                                       spectral_norms)
 
         self.apply(weight_init)
 
     def forward(self, obs):
-        mu, log_std = self.policy(obs).chunk(2, dim=-1)
+        mu, log_std = self.policy_net(obs).chunk(2, dim=-1)
 
         # constrain log_std inside [log_std_min, log_std_max]
         log_std = torch.tanh(log_std)

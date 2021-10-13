@@ -5,10 +5,6 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from omegaconf import OmegaConf
-from torch import distributions as pyd
-from torch.distributions.utils import _standard_normal
 
 
 class eval_mode:
@@ -55,33 +51,6 @@ def weight_init(m):
         nn.init.orthogonal_(m.weight.data, gain)
         if hasattr(m.bias, 'data'):
             m.bias.data.fill_(0.0)
-
-
-class Until:
-    def __init__(self, until, action_repeat=1):
-        self._until = until
-        self._action_repeat = action_repeat
-
-    def __call__(self, step):
-        if self._until is None:
-            return True
-        until = self._until // self._action_repeat
-        return step < until
-
-
-class Every:
-    def __init__(self, every, action_repeat=1):
-        self._every = every
-        self._action_repeat = action_repeat
-
-    def __call__(self, step):
-        if self._every is None:
-            return False
-        every = self._every // self._action_repeat
-        if step % every == 0:
-            return True
-        return False
-
 
 class Timer:
     def __init__(self):

@@ -29,7 +29,7 @@ If you use this code in your research project please cite us as:
 ```
 
 ## Implemented Agents
-| Agent | Command | | Paper |
+| Agent | Command | Paper |
 |---|---|---|---|
 | SAC | `agent=sac` |  [paper](https://arxiv.org/pdf/1801.01290.pdf)|
 | DDPG | `agent=ddpg` |  [paper](https://arxiv.org/pdf/1509.02971.pdf)|

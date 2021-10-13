@@ -87,10 +87,8 @@ class Workspace:
         return self._replay_iter
 
     def eval(self):
-        step, episode, total_reward = 0, 0, 0
-        eval_until_episode = utils.Until(self.cfg.num_eval_episodes)
-
-        while eval_until_episode(episode):
+        step, total_reward = 0, 0
+        for episode in range(self.cfg.num_eval_episodes):
             time_step = self.eval_env.reset()
             self.video_recorder.init(self.eval_env, enabled=True)
             while not time_step.last():
@@ -103,27 +101,21 @@ class Workspace:
                 total_reward += time_step.reward
                 step += 1
 
-            episode += 1
             self.video_recorder.save(f'{self.global_frame}_{episode}.mp4')
 
         with self.logger.log_and_dump_ctx(self.global_frame, ty='eval') as log:
-            log('episode_reward', total_reward / episode)
-            log('episode_length', step / episode)
+            log('episode_reward', total_reward / self.cfg.num_eval_episodes)
+            log('episode_length', step / self.cfg.num_eval_episodes)
             log('episode', self.global_episode)
             log('step', self.global_step)
 
     def train(self):
-        # predicates
-        train_until_step = utils.Until(self.cfg.num_train_frames)
-        seed_until_step = utils.Until(self.cfg.num_seed_frames)
-        eval_every_step = utils.Every(self.cfg.eval_every_frames)
-
         episode_step, episode_reward = 0, 0
         time_step = self.train_env.reset()
         self.replay_storage.add(time_step)
         self.train_video_recorder.init(time_step.observation)
         metrics = None
-        while train_until_step(self.global_step):
+        while self.global_frame <= self.cfg.num_train_frames:
             if time_step.last():
                 self._global_episode += 1
                 self.train_video_recorder.save(f'{self.global_frame}.mp4')
@@ -153,7 +145,7 @@ class Workspace:
                 episode_reward = 0
 
             # try to evaluate
-            if eval_every_step(self.global_step):
+            if self.global_frame % self.cfg.eval_every_frames == 0:
                 self.logger.log('eval_total_time', self.timer.total_time(),
                                 self.global_frame)
                 self.eval()
@@ -165,7 +157,7 @@ class Workspace:
                                         eval_mode=False)
 
             # try to update the agent
-            if not seed_until_step(self.global_step):
+            if self.global_frame >= self.cfg.num_seed_frames:
                 metrics = self.agent.update(self.replay_iter, self.global_step)
                 self.logger.log_metrics(metrics, self.global_frame, ty='train')
 
