@@ -11,6 +11,9 @@ critic_target_tau: 0.01
 update_every_steps: 2
 use_tb: ${use_tb}
 num_expl_steps: 5000
-hidden_dim: 1024
 log_std_bounds: [-5, 2]
 init_temperature: 0.1
+critic_hidden_dims: [1024, 1024] #[512, 512, 256]
+critic_spectral_norms: [true, true]
+actor_hidden_dims: [1024, 1024] #[256, 256, 256]
+actor_spectral_norms: [true, true]

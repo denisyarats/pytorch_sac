@@ -3,7 +3,7 @@ defaults:
   - override hydra/launcher: submitit_local
 
 # task settings
-task: cheetah_run
+task: humanoid_stand
 discount: 0.99
 # train settings
 num_train_frames: 1000000
@@ -14,8 +14,8 @@ num_eval_episodes: 10
 # snapshot
 save_snapshot: false
 # replay buffer
-replay_buffer_size: ${num_train_frames}
-replay_buffer_num_workers: 2
+replay_buffer_size: 1000000 #${num_train_frames}
+replay_buffer_num_workers: 4
 nstep: ${agent.nstep}
 batch_size: ${agent.batch_size}
 # misc
@@ -24,6 +24,7 @@ device: cuda
 save_video: true
 save_train_video: false
 use_tb: false
+use_amp: false
 # experiment
 experiment: exp
 

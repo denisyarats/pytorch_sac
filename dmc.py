@@ -13,6 +13,7 @@ class ExtendedTimeStep(NamedTuple):
     reward: Any
     discount: Any
     observation: Any
+    next_observation: Any
     action: Any
 
     def first(self):
@@ -233,24 +234,46 @@ class ObservationDTypeWrapper(dm_env.Environment):
 class ExtendedTimeStepWrapper(dm_env.Environment):
     def __init__(self, env):
         self._env = env
+        self._prev_observation = None
 
     def reset(self):
         time_step = self._env.reset()
+        self._prev_observation = time_step.observation
         return self._augment_time_step(time_step)
 
     def step(self, action):
         time_step = self._env.step(action)
-        return self._augment_time_step(time_step, action)
+        time_step = self._augment_time_step(time_step, action)
+        self._prev_observation = time_step.next_observation
+        return time_step
 
     def _augment_time_step(self, time_step, action=None):
         if action is None:
             action_spec = self.action_spec()
             action = np.zeros(action_spec.shape, dtype=action_spec.dtype)
-        return ExtendedTimeStep(observation=time_step.observation,
+
+        def default_on_none(value, default):
+            if value is None:
+                return default
+            return value
+
+        return ExtendedTimeStep(observation=self._prev_observation,
+                                next_observation=time_step.observation,
                                 step_type=time_step.step_type,
                                 action=action,
-                                reward=time_step.reward or 0.0,
-                                discount=time_step.discount or 1.0)
+                                reward=default_on_none(time_step.reward, 0.0),
+                                discount=default_on_none(
+                                    time_step.discount, 1.0))
+
+    def specs(self):
+        obs_spec = self._env.observation_spec()
+        action_spec = self._env.action_spec()
+        next_obs_spec = specs.Array(obs_spec.shape, obs_spec.dtype,
+                                    'next_observation')
+        reward_spec = specs.Array((1,), action_spec.dtype, 'reward')
+        discount_spec = specs.Array((1,), action_spec.dtype, 'discount')
+        return (obs_spec, action_spec, reward_spec, discount_spec,
+                next_obs_spec)
 
     def observation_spec(self):
         return self._env.observation_spec()

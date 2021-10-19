@@ -37,7 +37,9 @@ def soft_update_params(net, target_net, tau):
                                 (1 - tau) * target_param.data)
 
 
-def to_torch(xs, device):
+def to_torch(xs, device, dtype=None):
+    if dtype is not None:
+        xs = (x.astype(dtype) for x in xs)
     return tuple(torch.as_tensor(x, device=device) for x in xs)
 
 

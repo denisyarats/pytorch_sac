@@ -17,7 +17,7 @@ from dm_env import specs
 import dmc
 import utils
 from logger import Logger
-from replay_buffer import ReplayBufferStorage, make_replay_loader
+from replay_buffer3 import ReplayBuffer
 from video import TrainVideoRecorder, VideoRecorder
 
 torch.backends.cudnn.benchmark = True
@@ -38,20 +38,18 @@ class Workspace:
         self.train_env = dmc.make(cfg.task, cfg.seed)
         self.eval_env = dmc.make(cfg.task, cfg.seed)
         # create replay buffer
-        data_specs = (self.train_env.observation_spec(),
-                      self.train_env.action_spec(),
-                      specs.Array((1,), np.float32, 'reward'),
-                      specs.Array((1,), np.float32, 'discount'))
+        specs = self.train_env.specs()
 
-        self.replay_storage = ReplayBufferStorage(data_specs,
-                                                  self.work_dir / 'buffer')
+        self.replay_buffer = ReplayBuffer(specs, cfg.replay_buffer_size,
+                                          cfg.batch_size, cfg.nstep,
+                                          cfg.discount)
 
-        self.replay_loader = make_replay_loader(self.work_dir / 'buffer',
-                                                cfg.replay_buffer_size,
-                                                cfg.batch_size,
-                                                cfg.replay_buffer_num_workers,
-                                                cfg.save_snapshot, cfg.nstep,
-                                                cfg.discount)
+        #self.replay_loader = make_replay_loader(self.work_dir / 'buffer',
+        #                                        cfg.replay_buffer_size,
+        #                                        cfg.batch_size,
+        #                                        cfg.replay_buffer_num_workers,
+        #                                        cfg.save_snapshot, cfg.nstep,
+        #                                        cfg.discount)
         self._replay_iter = None
 
         self.video_recorder = VideoRecorder(
@@ -63,7 +61,7 @@ class Workspace:
             cfg.agent,
             obs_dim=self.train_env.observation_spec().shape[0],
             action_dim=self.train_env.action_spec().shape[0])
-        
+
         self.timer = utils.Timer()
         self._global_step = 0
         self._global_episode = 0
@@ -83,7 +81,7 @@ class Workspace:
     @property
     def replay_iter(self):
         if self._replay_iter is None:
-            self._replay_iter = iter(self.replay_loader)
+            self._replay_iter = iter(self.replay_buffer)
         return self._replay_iter
 
     def eval(self):
@@ -112,7 +110,7 @@ class Workspace:
     def train(self):
         episode_step, episode_reward = 0, 0
         time_step = self.train_env.reset()
-        self.replay_storage.add(time_step)
+        #self.replay_storage.add(time_step)
         self.train_video_recorder.init(time_step.observation)
         metrics = None
         while self.global_frame <= self.cfg.num_train_frames:
@@ -131,12 +129,12 @@ class Workspace:
                         log('episode_reward', episode_reward)
                         log('episode_length', episode_frame)
                         log('episode', self.global_episode)
-                        log('buffer_size', len(self.replay_storage))
+                        log('buffer_size', len(self.replay_buffer))
                         log('step', self.global_step)
 
                 # reset env
                 time_step = self.train_env.reset()
-                self.replay_storage.add(time_step)
+                #self.replay_storage.add(time_step)
                 self.train_video_recorder.init(time_step.observation)
                 # try to save snapshot
                 if self.cfg.save_snapshot:
@@ -164,7 +162,7 @@ class Workspace:
             # take env step
             time_step = self.train_env.step(action)
             episode_reward += time_step.reward
-            self.replay_storage.add(time_step)
+            self.replay_buffer.add(time_step)
             self.train_video_recorder.record(time_step.observation)
             episode_step += 1
             self._global_step += 1
