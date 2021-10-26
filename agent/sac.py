@@ -10,9 +10,9 @@ from nets import DoubleQCritic, StochasticActor
 
 class SACAgent:
     def __init__(self, name, obs_dim, action_dim, device, lr, nstep,
-                 batch_size, log_std_bounds, critic_target_tau,
+                 batch_size, log_std_bounds, critic_target_tau, critic_use_ln,
                  critic_hidden_dims, critic_spectral_norms, actor_hidden_dims,
-                 actor_spectral_norms, num_expl_steps, init_temperature,
+                 actor_use_ln, actor_spectral_norms, num_expl_steps, init_temperature,
                  update_every_steps, use_tb):
 
         self.device = device
@@ -22,13 +22,13 @@ class SACAgent:
         self.num_expl_steps = num_expl_steps
 
         # models
-        self.actor = StochasticActor(obs_dim, action_dim, actor_hidden_dims,
+        self.actor = StochasticActor(obs_dim, action_dim, actor_use_ln, actor_hidden_dims,
                                      actor_spectral_norms,
                                      log_std_bounds).to(device)
 
-        self.critic = DoubleQCritic(obs_dim, action_dim, critic_hidden_dims,
+        self.critic = DoubleQCritic(obs_dim, action_dim, critic_use_ln, critic_hidden_dims,
                                     critic_spectral_norms).to(device)
-        self.critic_target = DoubleQCritic(obs_dim, action_dim,
+        self.critic_target = DoubleQCritic(obs_dim, action_dim, critic_use_ln,
                                            critic_hidden_dims,
                                            critic_spectral_norms).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())

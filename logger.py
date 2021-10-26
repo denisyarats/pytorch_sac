@@ -8,15 +8,12 @@ import torchvision
 from termcolor import colored
 from torch.utils.tensorboard import SummaryWriter
 
-COMMON_TRAIN_FORMAT = [('frame', 'F', 'int'), ('step', 'S', 'int'),
-                       ('episode', 'E', 'int'), ('episode_length', 'L', 'int'),
-                       ('episode_reward', 'R', 'float'),
-                       ('buffer_size', 'BS', 'int'), ('fps', 'FPS', 'float'),
-                       ('total_time', 'T', 'time')]
+COMMON_TRAIN_FORMAT = [('step', 'S', 'int'), ('episode', 'E', 'int'),
+                       ('episode_return', 'R', 'float'),
+                       ('fps', 'FPS', 'float'), ('total_time', 'T', 'time')]
 
-COMMON_EVAL_FORMAT = [('frame', 'F', 'int'), ('step', 'S', 'int'),
-                      ('episode', 'E', 'int'), ('episode_length', 'L', 'int'),
-                      ('episode_reward', 'R', 'float'),
+COMMON_EVAL_FORMAT = [('step', 'S', 'int'), ('episode', 'E', 'int'),
+                      ('episode_return', 'R', 'float'),
                       ('total_time', 'T', 'time')]
 
 
@@ -112,7 +109,7 @@ class MetersGroup(object):
         if len(self._meters) == 0:
             return
         data = self._prime_meters()
-        data['frame'] = step
+        data['step'] = step
         self._dump_to_csv(data)
         self._dump_to_console(data, prefix)
         self._meters.clear()

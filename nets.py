@@ -45,13 +45,15 @@ class LayerNormMLP(nn.Module):
 
 
 class DoubleQCritic(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms):
+    def __init__(self, obs_dim, action_dim, use_ln, hidden_dims,
+                 spectral_norms):
         super().__init__()
 
         input_dim = obs_dim + action_dim
+        mlp_type = LayerNormMLP if use_ln else MLP
 
-        self.q1_net = LayerNormMLP(input_dim, 1, hidden_dims, spectral_norms)
-        self.q2_net = LayerNormMLP(input_dim, 1, hidden_dims, spectral_norms)
+        self.q1_net = mlp_type(input_dim, 1, hidden_dims, spectral_norms)
+        self.q2_net = mlp_type(input_dim, 1, hidden_dims, spectral_norms)
 
         self.apply(weight_init)
 
@@ -64,11 +66,13 @@ class DoubleQCritic(nn.Module):
 
 
 class DeterministicActor(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms):
+    def __init__(self, obs_dim, action_dim, use_ln, hidden_dims,
+                 spectral_norms):
         super().__init__()
 
-        self.policy_net = LayerNormMLP(obs_dim, action_dim, hidden_dims,
-                                       spectral_norms)
+        mlp_type = LayerNormMLP if use_ln else MLP
+        self.policy_net = mlp_type(obs_dim, action_dim, hidden_dims,
+                                   spectral_norms)
 
         self.apply(weight_init)
 
@@ -82,14 +86,15 @@ class DeterministicActor(nn.Module):
 
 
 class StochasticActor(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dims, spectral_norms,
-                 log_std_bounds):
+    def __init__(self, obs_dim, action_dim, use_ln, hidden_dims,
+                 spectral_norms, log_std_bounds):
         super().__init__()
 
         self.log_std_bounds = log_std_bounds
 
-        self.policy_net = LayerNormMLP(obs_dim, 2 * action_dim, hidden_dims,
-                                       spectral_norms)
+        mlp_type = LayerNormMLP if use_ln else MLP
+        self.policy_net = mlp_type(obs_dim, 2 * action_dim, hidden_dims,
+                                   spectral_norms)
 
         self.apply(weight_init)
 

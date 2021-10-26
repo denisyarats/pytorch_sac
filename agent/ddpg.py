@@ -11,7 +11,7 @@ from nets import DoubleQCritic, DeterministicActor
 class DDPGAgent:
     def __init__(self, name, obs_dim, action_dim, device, lr, nstep,
                  batch_size, critic_target_tau, num_expl_steps,
-                 critic_hidden_dims, critic_spectral_norms, actor_hidden_dims,
+                 critic_use_ln, critic_hidden_dims, critic_spectral_norms, actor_use_ln, actor_hidden_dims,
                  actor_spectral_norms, update_every_steps, stddev_schedule,
                  stddev_clip, use_tb):
         self.device = device
@@ -23,13 +23,13 @@ class DDPGAgent:
         self.stddev_clip = stddev_clip
 
         # models
-        self.actor = DeterministicActor(obs_dim, action_dim, actor_hidden_dims,
+        self.actor = DeterministicActor(obs_dim, action_dim, actor_use_ln, actor_hidden_dims,
                                         actor_spectral_norms).to(device)
 
-        self.critic = DoubleQCritic(obs_dim, action_dim, critic_hidden_dims,
+        self.critic = DoubleQCritic(obs_dim, action_dim, critic_use_ln, critic_hidden_dims,
                                     critic_spectral_norms).to(device)
         self.critic_target = DoubleQCritic(obs_dim, action_dim,
-                                           critic_hidden_dims,
+                                           critic_use_ln, critic_hidden_dims,
                                            critic_spectral_norms).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 

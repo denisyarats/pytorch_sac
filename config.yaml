@@ -3,19 +3,16 @@ defaults:
   - override hydra/launcher: submitit_local
 
 # task settings
-task: humanoid_stand
+task: cheetah_run
 discount: 0.99
 # train settings
-num_train_frames: 1000000
-num_seed_frames: 4000
+num_train_steps: 1000000
+num_seed_steps: 4000
 # eval
-eval_every_frames: 20000
+eval_every_steps: 20000
 num_eval_episodes: 10
-# snapshot
-save_snapshot: false
 # replay buffer
-replay_buffer_size: 1000000 #${num_train_frames}
-replay_buffer_num_workers: 4
+replay_buffer_size: ${num_train_steps}
 nstep: ${agent.nstep}
 batch_size: ${agent.batch_size}
 # misc
