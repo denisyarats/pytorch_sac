@@ -83,7 +83,22 @@ class DeterministicActor(nn.Module):
 
         dist = TruncatedNormal(mu, std)
         return dist
+    
+    
+class DeterministicActor2(nn.Module):
+    def __init__(self, obs_dim, action_dim, use_ln, hidden_dims,
+                 spectral_norms):
+        super().__init__()
 
+        mlp_type = LayerNormMLP if use_ln else MLP
+        self.policy_net = mlp_type(obs_dim, action_dim, hidden_dims,
+                                   spectral_norms)
+
+        self.apply(weight_init)
+
+    def forward(self, obs):
+        return self.policy_net(obs)
+    
 
 class StochasticActor(nn.Module):
     def __init__(self, obs_dim, action_dim, use_ln, hidden_dims,
