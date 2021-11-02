@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+#import apex
 
 import utils
 from nets import DoubleQCritic, DeterministicActor
@@ -21,7 +22,6 @@ class DDPGAgent:
         self.num_expl_steps = num_expl_steps
         self.stddev_schedule = stddev_schedule
         self.stddev_clip = stddev_clip
-
         # models
         self.actor = DeterministicActor(obs_dim, action_dim, actor_use_ln, actor_hidden_dims,
                                         actor_spectral_norms).to(device)
@@ -86,6 +86,8 @@ class DDPGAgent:
 
     def update_actor(self, obs, step):
         metrics = dict()
+        
+        utils.set_requires_grad(self.critic, False)
 
         stddev = utils.schedule(self.stddev_schedule, step)
         dist = self.actor(obs, stddev)
@@ -100,6 +102,8 @@ class DDPGAgent:
         self.actor_opt.zero_grad(set_to_none=True)
         actor_loss.backward()
         self.actor_opt.step()
+        
+        utils.set_requires_grad(self.critic, True)
 
         if self.use_tb:
             metrics['actor_loss'] = actor_loss.item()
@@ -129,7 +133,9 @@ class DDPGAgent:
         metrics.update(self.update_actor(obs, step))
 
         # update critic target
-        utils.soft_update_params(self.critic, self.critic_target,
-                                 self.critic_target_tau)
+        with torch.no_grad():
+            utils.soft_update_params(self.critic, self.critic_target,
+                                     self.critic_target_tau)
+                
 
         return metrics

@@ -33,8 +33,12 @@ def set_seed_everywhere(seed):
 
 def soft_update_params(net, target_net, tau):
     for param, target_param in zip(net.parameters(), target_net.parameters()):
-        target_param.data.copy_(tau * param.data +
-                                (1 - tau) * target_param.data)
+        target_param.data.lerp_(param.data, tau)
+
+
+def set_requires_grad(net, value):
+    for param in net.parameters():
+        param.requires_grad_(value)
 
 
 def to_torch(xs, device, dtype=None):
@@ -53,6 +57,7 @@ def weight_init(m):
         nn.init.orthogonal_(m.weight.data, gain)
         if hasattr(m.bias, 'data'):
             m.bias.data.fill_(0.0)
+
 
 class Timer:
     def __init__(self):

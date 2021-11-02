@@ -96,6 +96,8 @@ class SACAgent:
 
     def update_actor_and_alpha(self, obs, step):
         metrics = dict()
+        
+        utils.set_requires_grad(self.critic, False)
 
         dist = self.actor(obs)
         action = dist.rsample()
@@ -117,6 +119,8 @@ class SACAgent:
         self.alpha_opt.zero_grad(set_to_none=True)
         alpha_loss.backward()
         self.alpha_opt.step()
+        
+        utils.set_requires_grad(self.critic, True)
 
         if self.use_tb:
             metrics['actor_loss'] = actor_loss.item()
