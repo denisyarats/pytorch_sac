@@ -19,29 +19,30 @@ class ReplayBuffer:
         self._idx = 0
         self._full = False
         self._items = dict()
-        self._queue = deque([], maxlen=nstep)
+        self._queue = deque([], maxlen=nstep + 1)
         for spec in specs:
             self._items[spec.name] = np.empty((max_size, *spec.shape),
                                               dtype=spec.dtype)
-
     def __len__(self):
         return self._max_size if self._full else self._idx
 
     def add(self, time_step):
         for spec in self._specs:
+            if spec.name == 'next_observation': continue
             value = time_step[spec.name]
             if np.isscalar(value):
                 value = np.full(spec.shape, value, spec.dtype)
             assert spec.shape == value.shape and spec.dtype == value.dtype
 
         self._queue.append(time_step)
-        if len(self._queue) == self._nstep:
+        if len(self._queue) == self._nstep + 1:
             np.copyto(self._items['observation'][self._idx],
                       self._queue[0].observation)
-            np.copyto(self._items['action'][self._idx], self._queue[0].action)
+            np.copyto(self._items['action'][self._idx], self._queue[1].action)
             np.copyto(self._items['next_observation'][self._idx],
-                      self._queue[-1].next_observation)
+                      self._queue[-1].observation)
             reward, discount = 0.0, 1.0
+            self._queue.popleft()
             for ts in self._queue:
                 reward += discount * ts.reward
                 discount *= ts.discount * self._discount

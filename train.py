@@ -63,6 +63,7 @@ def main(cfg):
         eval_return = 0
         for i in range(cfg.num_eval_episodes):
             time_step = eval_env.reset()
+            #import ipdb; ipdb.set_trace()
             video.init(eval_env, enabled=True)
             while not time_step.last():
                 with torch.no_grad(), utils.eval_mode(agent):
@@ -70,6 +71,7 @@ def main(cfg):
                                        step,
                                        eval_mode=True)
                 time_step = eval_env.step(action)
+                #import ipdb; ipdb.set_trace()
                 video.record(eval_env)
                 eval_return += time_step.reward
 
@@ -82,6 +84,7 @@ def main(cfg):
 
     episode, episode_step, episode_return = 0, 0, 0
     time_step = train_env.reset()
+    replay_buffer.add(time_step)
     metrics = None
     for step in range(cfg.num_train_steps + 1):
         if time_step.last():
@@ -96,6 +99,7 @@ def main(cfg):
                     log('buffer_size', len(replay_buffer))
 
             time_step = train_env.reset()
+            replay_buffer.add(time_step)
             episode_step, episode_return = 0, 0
 
         if step % cfg.eval_every_steps == 0:

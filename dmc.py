@@ -13,7 +13,6 @@ class ExtendedTimeStep(NamedTuple):
     reward: Any
     discount: Any
     observation: Any
-    next_observation: Any
     action: Any
 
     def first(self):
@@ -234,18 +233,14 @@ class ObservationDTypeWrapper(dm_env.Environment):
 class ExtendedTimeStepWrapper(dm_env.Environment):
     def __init__(self, env):
         self._env = env
-        self._prev_observation = None
 
     def reset(self):
         time_step = self._env.reset()
-        self._prev_observation = time_step.observation
         return self._augment_time_step(time_step)
 
     def step(self, action):
         time_step = self._env.step(action)
-        time_step = self._augment_time_step(time_step, action)
-        self._prev_observation = time_step.next_observation
-        return time_step
+        return self._augment_time_step(time_step, action)
 
     def _augment_time_step(self, time_step, action=None):
         if action is None:
@@ -257,8 +252,7 @@ class ExtendedTimeStepWrapper(dm_env.Environment):
                 return default
             return value
 
-        return ExtendedTimeStep(observation=self._prev_observation,
-                                next_observation=time_step.observation,
+        return ExtendedTimeStep(observation=time_step.observation,
                                 step_type=time_step.step_type,
                                 action=action,
                                 reward=default_on_none(time_step.reward, 0.0),
